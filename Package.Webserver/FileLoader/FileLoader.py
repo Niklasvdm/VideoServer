@@ -85,11 +85,11 @@ def extractMP4FilesAndVTTFiles(directory,windows=False):
 
     for currMovie in movieNames:
         #print(currMovie)
-        logging.info("Current Movie: " + currMovie)
+        #logging.info("Current Movie: " + currMovie)
         currMovieDots = currMovie.replace(' ','.')
         lambdaMatch = lambda x : x if currMovieDots in x else None
         lambdaFilter = lambda x : True if x is not None else False
-        logging.info("Applying Lambda on the next line" + vtt_files[0])
+        #logging.info("Applying Lambda on the next line" + vtt_files[0])
         reduced = list(filter(lambdaFilter,list(map(lambdaMatch,vtt_files))))
         
         logging.info("Reduced load : " + str(len(reduced)))
@@ -99,7 +99,7 @@ def extractMP4FilesAndVTTFiles(directory,windows=False):
             continue
 
         fileLocations = list(map(lambdaSplit,reduced))
-        logging.info(fileLocations[0])
+        #logging.info(fileLocations[0])
         #print(fileLocations)
 
         vttDict[currMovie] = fileLocations
