@@ -1,0 +1,129 @@
+from flask import Flask, send_file, render_template_string, Response
+from flask_cors import CORS
+import os
+import tempfile
+from glob import glob
+from moviepy.editor import VideoFileClip
+from concurrent.futures import ThreadPoolExecutor
+import pysrt
+from pymkv import MKVFile
+
+# Directories
+ROOT_VIDEO_DIR = "C:\\Users\\Nikla\\Downloads"
+TEMP_DIRECTORY = tempfile.gettempdir()
+
+def convert_mkv_to_mp4(input_path):
+    """
+    Convert an MKV file to MP4 format using moviepy.
+    Returns the path to the converted file.
+    """
+    filename = os.path.basename(input_path)
+    name, _ = os.path.splitext(filename)
+    output_path = os.path.join(TEMP_DIRECTORY, f"{name}.mp4")
+    
+    if os.path.exists(output_path):
+        return output_path
+    
+    try:
+        video = VideoFileClip(input_path)
+        video.write_videofile(output_path, codec="libx264", audio_codec="aac")
+        return output_path
+    except Exception as e:
+        print(f"Error converting {input_path}: {str(e)}")
+        return None
+
+def extract_subtitles(input_path, output_dir):
+    """
+    Extract all subtitle tracks from the MKV file and save them as separate SRT files.
+    """
+    try:
+        mkv = MKVFile(input_path)
+        subtitle_tracks = [track for track in mkv.tracks if track.track_type == 'subtitles']
+        
+        if not subtitle_tracks:
+            print(f"No subtitle tracks found in {input_path}")
+            return []
+        
+        subtitle_files = []
+        for i, track in enumerate(subtitle_tracks):
+            try:
+                subs = pysrt.from_string(track.get_track())
+                subtitle_path = os.path.join(output_dir, f"{os.path.basename(input_path)[:-4]}_sub_{i+1}.srt")
+                subs.save(subtitle_path, encoding='utf-8')
+                subtitle_files.append(subtitle_path)
+                print(f"Extracted subtitle {i+1} to {subtitle_path}")
+            except Exception as e:
+                print(f"Error extracting subtitle {i+1} from {input_path}: {str(e)}")
+        
+        return subtitle_files
+    except Exception as e:
+        print(f"Error processing subtitles for {input_path}: {str(e)}")
+        return []
+
+def convert_mkv_to_mp4_with_subtitles(input_path):
+    """
+    Convert MKV to MP4 and extract subtitles. Returns paths to the MP4 and subtitle files.
+    """
+    filename = os.path.basename(input_path)
+    filepath = os.path.dirname(input_path)
+    name, _ = os.path.splitext(filename)
+    
+    mp4_path = os.path.join(filepath, f"{name}.mp4")
+    
+    if os.path.exists(mp4_path):
+        print(f"MP4 file already exists for {input_path}")
+        return mp4_path, []
+    
+    try:
+
+        subtitle_files = extract_subtitles(input_path, filepath)
+
+        # Convert video to MP4
+        video = VideoFileClip(input_path)
+        video.write_videofile(mp4_path, codec="libx264", audio_codec="aac")
+        print(f"Converted {input_path} to {mp4_path}")
+        
+        # Extract subtitles
+        
+        
+        return mp4_path, subtitle_files
+    except Exception as e:
+        print(f"Error processing {input_path}: {str(e)}")
+        return None, []
+
+def build_video_list() -> [str]:
+    """
+    Traverse the ROOT_VIDEO_DIR to find all video files (MP4 and MKV),
+    converting MKV files to MP4 and extracting subtitles when necessary.
+    """
+    movies = []
+    for root, _, files in os.walk(ROOT_VIDEO_DIR):
+        for item in files:
+            file_path = os.path.join(root, item)
+            if item.endswith(".mp4"):
+                movies.append(file_path)
+            elif item.endswith(".mkv"):
+                mp4_path, subtitles = convert_mkv_to_mp4_with_subtitles(file_path)
+                if mp4_path:
+                    movies.append(mp4_path)
+                    for sub in subtitles:
+                        print(f"Subtitle extracted: {sub}")
+                os.remove(file_path)  # Remove the MKV after conversion
+    return movies
+
+def find_and_convert_rick_and_morty():
+    """
+    Find all MKV files related to Rick and Morty, convert them to MP4 and extract subtitles.
+    """
+    mkv_files = glob(os.path.join(ROOT_VIDEO_DIR, '**/*.mkv'), recursive=True)
+    rick_and_morty_files = [f for f in mkv_files if "FINDME" in f]  # Replace FINDME with a better identifier
+    
+    for movie in rick_and_morty_files:
+        if not os.path.exists(movie[:-4] + ".mp4"):
+            print(f"Converting {movie}")
+            mp4_path, subs = convert_mkv_to_mp4_with_subtitles(movie)
+            if mp4_path:
+                print(f"Converted {movie} to {mp4_path}")
+                os.remove(movie)  # Remove the original MKV
+
+find_and_convert_rick_and_morty()

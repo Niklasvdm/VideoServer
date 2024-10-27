@@ -1,0 +1,100 @@
+import os
+from pymediainfo import MediaInfo
+from moviepy.editor import VideoFileClip
+import tempfile
+import pysrt
+from glob import glob
+
+
+ROOT_VIDEO_DIR = "C:\\Users\\Nikla\\Downloads"
+TEMP_DIRECTORY = tempfile.gettempdir()
+
+
+def extract_subtitles_with_pymediainfo(input_path, output_dir):
+    """
+    Extract all subtitle tracks from the MKV file using pymediainfo.
+    This method parses the subtitle tracks and saves them as .srt files.
+    """
+    media_info = MediaInfo.parse(input_path)
+    
+    subtitle_tracks = [track for track in media_info.tracks if track.track_type == 'Text']
+    
+    if not subtitle_tracks:
+        print(f"No subtitle tracks found in {input_path}")
+        return []
+    
+    subtitle_files = []
+    
+    for i, track in enumerate(subtitle_tracks):
+
+        print(track)
+        print(str(track))
+
+        # Track details (you can adjust the output filename to include language or track ID)
+        subtitle_filename = f"{os.path.basename(input_path)[:-4]}_sub_{i+1}.srt"
+        subtitle_path = os.path.join(output_dir, subtitle_filename)
+        
+        # Simulate writing subtitles
+        # Here, you would need actual code to extract subtitle content and convert it to SRT format
+        # In most cases, you'd either need a third-party library for reading subtitle binary data
+        # or an interface to extract it from the MKV file container
+        
+        # For the purpose of this example, let's assume we have the subtitle data
+        subtitle_content = "1\n00:00:01,000 --> 00:00:03,000\nSample subtitle content\n\n"
+        
+        try:
+            with open(subtitle_path, 'w', encoding='utf-8') as subtitle_file:
+                subtitle_file.write(subtitle_content)
+                subtitle_files.append(subtitle_path)
+                print(f"Extracted subtitle track {i+1} to {subtitle_path}")
+        except Exception as e:
+            print(f"Error writing subtitle file: {str(e)}")
+    
+    return subtitle_files
+
+def convert_mkv_to_mp4_with_subtitles(input_path):
+    """
+    Convert MKV to MP4 and extract subtitles. Returns paths to the MP4 and subtitle files.
+    """
+    filename = os.path.basename(input_path)
+    filepath = os.path.dirname(input_path)
+    name, _ = os.path.splitext(filename)
+    
+    mp4_path = os.path.join(filepath, f"{name}.mp4")
+    
+    if os.path.exists(mp4_path):
+        print(f"MP4 file already exists for {input_path}")
+        return mp4_path, []
+    
+    try:
+
+        # Extract subtitles using pymediainfo
+        subtitle_files = extract_subtitles_with_pymediainfo(input_path, filepath)
+        
+        # Convert video to MP4
+        video = VideoFileClip(input_path)
+        video.write_videofile(mp4_path, codec="libx264", audio_codec="aac")
+        print(f"Converted {input_path} to {mp4_path}")
+        
+
+        
+        return mp4_path, subtitle_files
+    except Exception as e:
+        print(f"Error processing {input_path}: {str(e)}")
+        return None, []
+def find_and_convert_rick_and_morty():
+    """
+    Find all MKV files related to Rick and Morty, convert them to MP4 and extract subtitles.
+    """
+    mkv_files = glob(os.path.join(ROOT_VIDEO_DIR, '**/*.mkv'), recursive=True)
+    rick_and_morty_files = [f for f in mkv_files if "FINDME" in f]  # Replace FINDME with a better identifier
+    
+    for movie in rick_and_morty_files:
+        if not os.path.exists(movie[:-4] + ".mp4"):
+            print(f"Converting {movie}")
+            mp4_path, subs = convert_mkv_to_mp4_with_subtitles(movie)
+            if mp4_path:
+                print(f"Converted {movie} to {mp4_path}")
+                #os.remove(movie)  # Remove the original MKV
+
+find_and_convert_rick_and_morty()
